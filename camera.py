@@ -6,8 +6,8 @@ import cv2
 import torch
 import torchvision
 
-from models.pfld import PFLDInference
-from mtcnn.detector import detect_faces
+from pfld.models.pfld import PFLDInference
+from pfld.mtcnn.detector import detect_faces
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

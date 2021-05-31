@@ -1,8 +1,5 @@
 import numpy as np
 import cv2
-import sys
-
-sys.path.append("..")
 
 from torch.utils import data
 from torch.utils.data import DataLoader

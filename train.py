@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tensorboardX import SummaryWriter
 
-from dataset.datasets import WLFWDatasets
-from models.pfld import PFLDInference, AuxiliaryNet
+from pfld.dataset.datasets import WLFWDatasets
+from pfld.models.pfld import PFLDInference, AuxiliaryNet
 from pfld.loss import PFLDLoss
 from pfld.utils import AverageMeter
 
