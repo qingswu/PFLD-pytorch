@@ -1,7 +1,8 @@
 import numpy as np
 import cv2
 import sys
-sys.path.append('..')
+
+sys.path.append("..")
 
 from torch.utils import data
 from torch.utils.data import DataLoader
@@ -13,7 +14,7 @@ def flip(img, annotation):
 
     x_min, y_min, x_max, y_max = annotation[0:4]
     landmark_x = annotation[4::2]
-    landmark_y = annotation[4 + 1::2]
+    landmark_y = annotation[4 + 1 :: 2]
 
     bbox = np.array([w - x_max, y_min, w - x_min, y_max])
     for i in range(len(landmark_x)):
@@ -33,7 +34,7 @@ def flip(img, annotation):
 
 
 def channel_shuffle(img, annotation):
-    if (img.shape[2] == 3):
+    if img.shape[2] == 3:
         ch_arr = [0, 1, 2]
         np.random.shuffle(ch_arr)
         img = img[..., ch_arr]
@@ -53,7 +54,7 @@ def random_noise(img, annotation, limit=[0, 0.2], p=0.5):
 
 def random_brightness(img, annotation, brightness=0.3):
     alpha = 1 + np.random.uniform(-brightness, brightness)
-    img = alpha * image
+    img = alpha * img
     img = np.clip(img, 0, 255).astype(np.uint8)
     return img, annotation
 
@@ -69,7 +70,7 @@ def random_contrast(img, annotation, contrast=0.3):
 
 
 def random_saturation(img, annotation, saturation=0.5):
-    coef = nd.array([[[0.299, 0.587, 0.114]]])
+    coef = np.array([[[0.299, 0.587, 0.114]]])
     alpha = np.random.uniform(-saturation, saturation)
     gray = img * coef
     gray = np.sum(gray, axis=2, keepdims=True)
@@ -93,13 +94,12 @@ def scale(img, annotation):
 
     bbox = annotation[0:4]
     landmark_x = annotation[4::2]
-    landmark_y = annotation[4 + 1::2]
+    landmark_y = annotation[4 + 1 :: 2]
 
     h, w = int(origin_h * f_xy), int(origin_w * f_xy)
-    image = resize(img, (h, w),
-                   preserve_range=True,
-                   anti_aliasing=True,
-                   mode='constant').astype(np.uint8)
+    image = resize(
+        img, (h, w), preserve_range=True, anti_aliasing=True, mode="constant"
+    ).astype(np.uint8)
 
     new_annotation = list()
     for i in range(len(bbox)):
@@ -119,11 +119,10 @@ def rotate(img, annotation, alpha=30):
 
     bbox = annotation[0:4]
     landmark_x = annotation[4::2]
-    landmark_y = annotation[4 + 1::2]
+    landmark_y = annotation[4 + 1 :: 2]
     center = ((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2)
     rot_mat = cv2.getRotationMatrix2D(center, alpha, 1)
-    img_rotated_by_alpha = cv2.warpAffine(img, rot_mat,
-                                          (img.shape[1], img.shape[0]))
+    img_rotated_by_alpha = cv2.warpAffine(img, rot_mat, (img.shape[1], img.shape[0]))
 
     point_x = [bbox[0], bbox[2], bbox[0], bbox[2]]
     point_y = [bbox[1], bbox[3], bbox[3], bbox[1]]
@@ -131,10 +130,8 @@ def rotate(img, annotation, alpha=30):
     new_point_x = list()
     new_point_y = list()
     for (x, y) in zip(landmark_x, landmark_y):
-        new_point_x.append(rot_mat[0][0] * x + rot_mat[0][1] * y +
-                           rot_mat[0][2])
-        new_point_y.append(rot_mat[1][0] * x + rot_mat[1][1] * y +
-                           rot_mat[1][2])
+        new_point_x.append(rot_mat[0][0] * x + rot_mat[0][1] * y + rot_mat[0][2])
+        new_point_y.append(rot_mat[1][0] * x + rot_mat[1][1] * y + rot_mat[1][2])
 
     new_annotation = list()
     new_annotation.append(min(new_point_x))
@@ -143,10 +140,8 @@ def rotate(img, annotation, alpha=30):
     new_annotation.append(max(new_point_y))
 
     for (x, y) in zip(landmark_x, landmark_y):
-        new_annotation.append(rot_mat[0][0] * x + rot_mat[0][1] * y +
-                              rot_mat[0][2])
-        new_annotation.append(rot_mat[1][0] * x + rot_mat[1][1] * y +
-                              rot_mat[1][2])
+        new_annotation.append(rot_mat[0][0] * x + rot_mat[0][1] * y + rot_mat[0][2])
+        new_annotation.append(rot_mat[1][0] * x + rot_mat[1][1] * y + rot_mat[1][2])
 
     return img_rotated_by_alpha, new_annotation
 
@@ -160,7 +155,7 @@ class WLFWDatasets(data.Dataset):
         self.filenames = None
         self.euler_angle = None
         self.transforms = transforms
-        with open(file_list, 'r') as f:
+        with open(file_list, "r") as f:
             self.lines = f.readlines()
 
     def __getitem__(self, index):
@@ -177,14 +172,12 @@ class WLFWDatasets(data.Dataset):
         return len(self.lines)
 
 
-if __name__ == '__main__':
-    file_list = './data/test_data/list.txt'
+if __name__ == "__main__":
+    file_list = "./data/test_data/list.txt"
     wlfwdataset = WLFWDatasets(file_list)
-    dataloader = DataLoader(wlfwdataset,
-                            batch_size=256,
-                            shuffle=True,
-                            num_workers=0,
-                            drop_last=False)
+    dataloader = DataLoader(
+        wlfwdataset, batch_size=256, shuffle=True, num_workers=0, drop_last=False
+    )
     for img, landmark, attribute, euler_angle in dataloader:
         print("img shape", img.shape)
         print("landmark size", landmark.size())

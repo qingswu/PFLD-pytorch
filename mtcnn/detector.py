@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def nms(boxes, overlap_threshold=0.5, mode='union'):
+def nms(boxes, overlap_threshold=0.5, mode="union"):
     if len(boxes) == 0:
         return []
 
@@ -31,15 +31,14 @@ def nms(boxes, overlap_threshold=0.5, mode='union'):
         h = np.maximum(0.0, iy2 - iy1 + 1.0)
 
         inter = w * h
-        if mode == 'min':
+        if mode == "min":
             overlap = inter / np.minimum(area[i], area[ids[:last]])
-        elif mode == 'union':
+        elif mode == "union":
             overlap = inter / (area[i] + area[ids[:last]] - inter)
 
         ids = np.delete(
-            ids,
-            np.concatenate([[last],
-                            np.where(overlap > overlap_threshold)[0]]))
+            ids, np.concatenate([[last], np.where(overlap > overlap_threshold)[0]])
+        )
     return pick
 
 
@@ -73,19 +72,21 @@ def get_image_boxes(bounding_boxes, img, size=24):
     width = img.shape[1]
     height = img.shape[0]
 
-    [dy, edy, dx, edx, y, ey, x, ex, w,
-     h] = correct_bboxes(bounding_boxes, width, height)
-    img_boxes = np.zeros((num_boxes, 3, size, size), 'float32')
+    [dy, edy, dx, edx, y, ey, x, ex, w, h] = correct_bboxes(
+        bounding_boxes, width, height
+    )
+    img_boxes = np.zeros((num_boxes, 3, size, size), "float32")
 
     for i in range(num_boxes):
-        img_box = np.zeros((h[i], w[i], 3), 'uint8')
+        img_box = np.zeros((h[i], w[i], 3), "uint8")
 
-        img_array = np.asarray(img, 'uint8')
-        img_box[dy[i]:(edy[i] + 1), dx[i]:(edx[i] + 1), :] =\
-            img_array[y[i]:(ey[i] + 1), x[i]:(ex[i] + 1), :]
+        img_array = np.asarray(img, "uint8")
+        img_box[dy[i] : (edy[i] + 1), dx[i] : (edx[i] + 1), :] = img_array[
+            y[i] : (ey[i] + 1), x[i] : (ex[i] + 1), :
+        ]
 
         img_box = cv2.resize(img_box, (size, size))
-        img_box = np.asarray(img_box, 'float32')
+        img_box = np.asarray(img_box, "float32")
         img_boxes[i, :, :, :] = _preprocess(img_box)
     return img_boxes
 
@@ -97,7 +98,7 @@ def correct_bboxes(bboxes, width, height):
 
     x, y, ex, ey = x1, y1, x2, y2
 
-    dx, dy = np.zeros((num_boxes, )), np.zeros((num_boxes, ))
+    dx, dy = np.zeros((num_boxes,)), np.zeros((num_boxes,))
     edx, edy = w.copy() - 1.0, h.copy() - 1.0
 
     ind = np.where(ex > width - 1.0)[0]
@@ -117,7 +118,7 @@ def correct_bboxes(bboxes, width, height):
     y[ind] = 0.0
 
     return_list = [dy, edy, dx, edx, y, ey, x, ex, w, h]
-    return_list = [i.astype('int32') for i in return_list]
+    return_list = [i.astype("int32") for i in return_list]
 
     return return_list
 
@@ -154,18 +155,24 @@ class PNet(nn.Module):
     def __init__(self):
         super(PNet, self).__init__()
         self.features = nn.Sequential(
-            OrderedDict([('conv1', nn.Conv2d(3, 10, 3, 1)),
-                         ('prelu1', nn.PReLU(10)),
-                         ('pool1', nn.MaxPool2d(2, 2, ceil_mode=True)),
-                         ('conv2', nn.Conv2d(10, 16, 3, 1)),
-                         ('prelu2', nn.PReLU(16)),
-                         ('conv3', nn.Conv2d(16, 32, 3, 1)),
-                         ('prelu3', nn.PReLU(32))]))
+            OrderedDict(
+                [
+                    ("conv1", nn.Conv2d(3, 10, 3, 1)),
+                    ("prelu1", nn.PReLU(10)),
+                    ("pool1", nn.MaxPool2d(2, 2, ceil_mode=True)),
+                    ("conv2", nn.Conv2d(10, 16, 3, 1)),
+                    ("prelu2", nn.PReLU(16)),
+                    ("conv3", nn.Conv2d(16, 32, 3, 1)),
+                    ("prelu3", nn.PReLU(32)),
+                ]
+            )
+        )
         self.conv4_1 = nn.Conv2d(32, 2, 1, 1)
         self.conv4_2 = nn.Conv2d(32, 4, 1, 1)
 
-        weights = np.load(os.path.join(os.path.dirname(__file__), 'pnet.npy'),
-                          allow_pickle=True)[()]
+        weights = np.load(
+            os.path.join(os.path.dirname(__file__), "pnet.npy"), allow_pickle=True
+        )[()]
         for n, p in self.named_parameters():
             p.data = torch.FloatTensor(weights[n])
 
@@ -181,21 +188,28 @@ class RNet(nn.Module):
     def __init__(self):
         super(RNet, self).__init__()
         self.features = nn.Sequential(
-            OrderedDict([('conv1', nn.Conv2d(3, 28, 3, 1)),
-                         ('prelu1', nn.PReLU(28)),
-                         ('pool1', nn.MaxPool2d(3, 2, ceil_mode=True)),
-                         ('conv2', nn.Conv2d(28, 48, 3, 1)),
-                         ('prelu2', nn.PReLU(48)),
-                         ('pool2', nn.MaxPool2d(3, 2, ceil_mode=True)),
-                         ('conv3', nn.Conv2d(48, 64, 2, 1)),
-                         ('prelu3', nn.PReLU(64)), ('flatten', Flatten()),
-                         ('conv4', nn.Linear(576, 128)),
-                         ('prelu4', nn.PReLU(128))]))
+            OrderedDict(
+                [
+                    ("conv1", nn.Conv2d(3, 28, 3, 1)),
+                    ("prelu1", nn.PReLU(28)),
+                    ("pool1", nn.MaxPool2d(3, 2, ceil_mode=True)),
+                    ("conv2", nn.Conv2d(28, 48, 3, 1)),
+                    ("prelu2", nn.PReLU(48)),
+                    ("pool2", nn.MaxPool2d(3, 2, ceil_mode=True)),
+                    ("conv3", nn.Conv2d(48, 64, 2, 1)),
+                    ("prelu3", nn.PReLU(64)),
+                    ("flatten", Flatten()),
+                    ("conv4", nn.Linear(576, 128)),
+                    ("prelu4", nn.PReLU(128)),
+                ]
+            )
+        )
         self.conv5_1 = nn.Linear(128, 2)
         self.conv5_2 = nn.Linear(128, 4)
 
-        weights = np.load(os.path.join(os.path.dirname(__file__), 'rnet.npy'),
-                          allow_pickle=True)[()]
+        weights = np.load(
+            os.path.join(os.path.dirname(__file__), "rnet.npy"), allow_pickle=True
+        )[()]
         for n, p in self.named_parameters():
             p.data = torch.FloatTensor(weights[n])
 
@@ -211,29 +225,33 @@ class ONet(nn.Module):
     def __init__(self):
         super(ONet, self).__init__()
         self.features = nn.Sequential(
-            OrderedDict([
-                ('conv1', nn.Conv2d(3, 32, 3, 1)),
-                ('prelu1', nn.PReLU(32)),
-                ('pool1', nn.MaxPool2d(3, 2, ceil_mode=True)),
-                ('conv2', nn.Conv2d(32, 64, 3, 1)),
-                ('prelu2', nn.PReLU(64)),
-                ('pool2', nn.MaxPool2d(3, 2, ceil_mode=True)),
-                ('conv3', nn.Conv2d(64, 64, 3, 1)),
-                ('prelu3', nn.PReLU(64)),
-                ('pool3', nn.MaxPool2d(2, 2, ceil_mode=True)),
-                ('conv4', nn.Conv2d(64, 128, 2, 1)),
-                ('prelu4', nn.PReLU(128)),
-                ('flatten', Flatten()),
-                ('conv5', nn.Linear(1152, 256)),
-                ('drop5', nn.Dropout(0.25)),
-                ('prelu5', nn.PReLU(256)),
-            ]))
+            OrderedDict(
+                [
+                    ("conv1", nn.Conv2d(3, 32, 3, 1)),
+                    ("prelu1", nn.PReLU(32)),
+                    ("pool1", nn.MaxPool2d(3, 2, ceil_mode=True)),
+                    ("conv2", nn.Conv2d(32, 64, 3, 1)),
+                    ("prelu2", nn.PReLU(64)),
+                    ("pool2", nn.MaxPool2d(3, 2, ceil_mode=True)),
+                    ("conv3", nn.Conv2d(64, 64, 3, 1)),
+                    ("prelu3", nn.PReLU(64)),
+                    ("pool3", nn.MaxPool2d(2, 2, ceil_mode=True)),
+                    ("conv4", nn.Conv2d(64, 128, 2, 1)),
+                    ("prelu4", nn.PReLU(128)),
+                    ("flatten", Flatten()),
+                    ("conv5", nn.Linear(1152, 256)),
+                    ("drop5", nn.Dropout(0.25)),
+                    ("prelu5", nn.PReLU(256)),
+                ]
+            )
+        )
 
         self.conv6_1 = nn.Linear(256, 2)
         self.conv6_2 = nn.Linear(256, 4)
         self.conv6_3 = nn.Linear(256, 10)
-        weights = np.load(os.path.join(os.path.dirname(__file__), 'onet.npy'),
-                          allow_pickle=True)[()]
+        weights = np.load(
+            os.path.join(os.path.dirname(__file__), "onet.npy"), allow_pickle=True
+        )[()]
         for n, p in self.named_parameters():
             p.data = torch.FloatTensor(weights[n])
 
@@ -250,7 +268,7 @@ def run_first_stage(image, net, scale, threshold):
     height, width = image.shape[:2]
     sw, sh = math.ceil(width * scale), math.ceil(height * scale)
     img = cv2.resize(image, (sw, sh))
-    img = np.asarray(img, 'float32')
+    img = np.asarray(img, "float32")
     img = torch.FloatTensor(_preprocess(img))
     output = net(img)
     probs = output[1].data.numpy()[0, 1, :, :]
@@ -274,19 +292,25 @@ def _generate_bboxes(probs, offsets, scale, threshold):
     offsets = np.array([tx1, ty1, tx2, ty2])
     score = probs[inds[0], inds[1]]
 
-    bounding_boxes = np.vstack([
-        np.round((stride * inds[1] + 1.0) / scale),
-        np.round((stride * inds[0] + 1.0) / scale),
-        np.round((stride * inds[1] + 1.0 + cell_size) / scale),
-        np.round((stride * inds[0] + 1.0 + cell_size) / scale), score, offsets
-    ])
+    bounding_boxes = np.vstack(
+        [
+            np.round((stride * inds[1] + 1.0) / scale),
+            np.round((stride * inds[0] + 1.0) / scale),
+            np.round((stride * inds[1] + 1.0 + cell_size) / scale),
+            np.round((stride * inds[0] + 1.0 + cell_size) / scale),
+            score,
+            offsets,
+        ]
+    )
     return bounding_boxes.T
 
 
-def detect_faces(image,
-                 min_face_size=20.0,
-                 thresholds=[0.6, 0.7, 0.8],
-                 nms_thresholds=[0.7, 0.7, 0.7]):
+def detect_faces(
+    image,
+    min_face_size=20.0,
+    thresholds=[0.6, 0.7, 0.8],
+    nms_thresholds=[0.7, 0.7, 0.7],
+):
 
     pnet, rnet, onet = PNet(), RNet(), ONet()
     onet.eval()
@@ -302,7 +326,7 @@ def detect_faces(image,
     min_length *= m
     factor_count = 0
     while min_length > min_detection_size:
-        scales.append(m * factor**factor_count)
+        scales.append(m * factor ** factor_count)
         min_length *= factor
         factor_count += 1
 
@@ -319,8 +343,7 @@ def detect_faces(image,
     bounding_boxes = np.vstack(bounding_boxes)
     keep = nms(bounding_boxes[:, 0:5], nms_thresholds[0])
     bounding_boxes = bounding_boxes[keep]
-    bounding_boxes = calibrate_box(bounding_boxes[:, 0:5], bounding_boxes[:,
-                                                                          5:])
+    bounding_boxes = calibrate_box(bounding_boxes[:, 0:5], bounding_boxes[:, 5:])
     bounding_boxes = convert_to_square(bounding_boxes)
     bounding_boxes[:, 0:4] = np.round(bounding_boxes[:, 0:4])
 
@@ -333,7 +356,7 @@ def detect_faces(image,
 
     keep = np.where(probs[:, 1] > thresholds[1])[0]
     bounding_boxes = bounding_boxes[keep]
-    bounding_boxes[:, 4] = probs[keep, 1].reshape((-1, ))
+    bounding_boxes[:, 4] = probs[keep, 1].reshape((-1,))
     offsets = offsets[keep]
 
     keep = nms(bounding_boxes, nms_thresholds[1])
@@ -354,7 +377,7 @@ def detect_faces(image,
 
     keep = np.where(probs[:, 1] > thresholds[2])[0]
     bounding_boxes = bounding_boxes[keep]
-    bounding_boxes[:, 4] = probs[keep, 1].reshape((-1, ))
+    bounding_boxes[:, 4] = probs[keep, 1].reshape((-1,))
     offsets = offsets[keep]
     landmarks = landmarks[keep]
 
@@ -362,13 +385,15 @@ def detect_faces(image,
     width = bounding_boxes[:, 2] - bounding_boxes[:, 0] + 1.0
     height = bounding_boxes[:, 3] - bounding_boxes[:, 1] + 1.0
     xmin, ymin = bounding_boxes[:, 0], bounding_boxes[:, 1]
-    landmarks[:, 0:5] = np.expand_dims(
-        xmin, 1) + np.expand_dims(width, 1) * landmarks[:, 0:5]
-    landmarks[:, 5:10] = np.expand_dims(
-        ymin, 1) + np.expand_dims(height, 1) * landmarks[:, 5:10]
+    landmarks[:, 0:5] = (
+        np.expand_dims(xmin, 1) + np.expand_dims(width, 1) * landmarks[:, 0:5]
+    )
+    landmarks[:, 5:10] = (
+        np.expand_dims(ymin, 1) + np.expand_dims(height, 1) * landmarks[:, 5:10]
+    )
 
     bounding_boxes = calibrate_box(bounding_boxes, offsets)
-    keep = nms(bounding_boxes, nms_thresholds[2], mode='min')
+    keep = nms(bounding_boxes, nms_thresholds[2], mode="min")
     bounding_boxes = bounding_boxes[keep]
     landmarks = landmarks[keep]
 
