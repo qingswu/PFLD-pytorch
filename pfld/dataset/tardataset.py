@@ -179,8 +179,9 @@ class TarDataset(Dataset):
         state["tar_obj"] = {}
         return state
 
+
 if __name__ == "__main__":
-  dataset = TarDataset('D:/Documents/Drive/WLFW/WLFW_data.tar')
-  for d in dataset:
-    print(d.shape)
-    break
+    dataset = TarDataset("D:/Documents/Drive/WLFW/WLFW_data.tar")
+    for d in dataset:
+        print(d.shape)
+        break

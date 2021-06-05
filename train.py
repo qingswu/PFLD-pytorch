@@ -5,9 +5,7 @@ import argparse
 import logging
 import os
 
-import numpy as np
 import torch
-
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tensorboardX import SummaryWriter
@@ -15,7 +13,7 @@ from tensorboardX import SummaryWriter
 from pfld.dataset.datasets import WLFWTarDatasets
 from pfld.models.pfld import PFLDInference, AuxiliaryNet
 from pfld.loss import PFLDLoss
-from pfld.utils import AverageMeter
+from pfld.trainer import train, validate, save_checkpoint
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -26,11 +24,6 @@ def print_args(args):
         logging.info(s)
 
 
-def save_checkpoint(state, filename="checkpoint.pth.tar"):
-    torch.save(state, filename)
-    logging.info("Save checkpoint to {0:}".format(filename))
-
-
 def str2bool(v):
     if v.lower() in ("yes", "true", "t", "y", "1"):
         return True
@@ -38,55 +31,6 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError("Boolean value expected")
-
-
-def train(train_loader, pfld_backbone, auxiliarynet, criterion, optimizer, epoch):
-    losses = AverageMeter()
-
-    weighted_loss, loss = None, None
-    for img, landmark_gt, attribute_gt, euler_angle_gt in train_loader:
-        img = img.to(device)
-        attribute_gt = attribute_gt.to(device)
-        landmark_gt = landmark_gt.to(device)
-        euler_angle_gt = euler_angle_gt.to(device)
-        pfld_backbone = pfld_backbone.to(device)
-        auxiliarynet = auxiliarynet.to(device)
-        features, landmarks = pfld_backbone(img)
-        angle = auxiliarynet(features)
-        weighted_loss, loss = criterion(
-            attribute_gt,
-            landmark_gt,
-            euler_angle_gt,
-            angle,
-            landmarks,
-            args.train_batchsize,
-        )
-        optimizer.zero_grad()
-        weighted_loss.backward()
-        optimizer.step()
-
-        losses.update(loss.item())
-    return weighted_loss, loss
-
-
-def validate(wlfw_val_dataloader, pfld_backbone, auxiliarynet, criterion):
-    pfld_backbone.eval()
-    auxiliarynet.eval()
-    losses = []
-    with torch.no_grad():
-        for img, landmark_gt, attribute_gt, euler_angle_gt in wlfw_val_dataloader:
-            img = img.to(device)
-            attribute_gt = attribute_gt.to(device)
-            landmark_gt = landmark_gt.to(device)
-            euler_angle_gt = euler_angle_gt.to(device)
-            pfld_backbone = pfld_backbone.to(device)
-            auxiliarynet = auxiliarynet.to(device)
-            _, landmark = pfld_backbone(img)
-            loss = torch.mean(torch.sum((landmark_gt - landmark) ** 2, axis=1))
-            losses.append(loss.cpu().numpy())
-    print("===> Evaluate:")
-    print("Eval set: Average loss: {:.4f} ".format(np.mean(losses)))
-    return np.mean(losses)
 
 
 def main(args):
@@ -147,7 +91,13 @@ def main(args):
     writer = SummaryWriter(args.tensorboard)
     for epoch in range(args.start_epoch, args.end_epoch + 1):
         weighted_train_loss, train_loss = train(
-            dataloader, pfld_backbone, auxiliarynet, criterion, optimizer, epoch
+            dataloader,
+            pfld_backbone,
+            auxiliarynet,
+            criterion,
+            optimizer,
+            epoch,
+            args.train_batchsize,
         )
         filename = os.path.join(
             str(args.snapshot), "checkpoint_epoch_" + str(epoch) + ".pth.tar"
