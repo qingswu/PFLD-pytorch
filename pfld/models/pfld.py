@@ -138,3 +138,19 @@ class AuxiliaryNet(nn.Module):
         x = self.fc2(x)
 
         return x
+
+
+class PFLD(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.pfld_backbone = PFLDInference()
+        self.auxiliarynet = AuxiliaryNet()
+
+    def forward(self, x, train_mode=True):
+        features, landmarks = self.pfld_backbone(x)
+        if not train_mode:
+            return landmarks
+
+        angle = self.auxiliarynet(features)
+
+        return landmarks, angle
