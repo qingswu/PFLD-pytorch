@@ -1,8 +1,12 @@
+import os
+
 import numpy as np
 import cv2
 
 from torch.utils import data
 from torch.utils.data import DataLoader
+
+from pfld.dataset.tardataset import TarDataset
 
 
 def flip(img, annotation):
@@ -113,7 +117,6 @@ def scale(img, annotation):
 
 
 def rotate(img, annotation, alpha=30):
-
     bbox = annotation[0:4]
     landmark_x = annotation[4::2]
     landmark_y = annotation[4 + 1 :: 2]
@@ -144,7 +147,7 @@ def rotate(img, annotation, alpha=30):
 
 
 class WLFWDatasets(data.Dataset):
-    def __init__(self, file_list, transforms=None):
+    def __init__(self, data_root, file_list, transforms=None):
         self.line = None
         self.path = None
         self.landmarks = None
@@ -152,12 +155,13 @@ class WLFWDatasets(data.Dataset):
         self.filenames = None
         self.euler_angle = None
         self.transforms = transforms
+        self.data_root = data_root
         with open(file_list, "r") as f:
             self.lines = f.readlines()
 
     def __getitem__(self, index):
         self.line = self.lines[index].strip().split()
-        self.img = cv2.imread(self.line[0])
+        self.img = cv2.imread(os.path.join(self.data_root, self.line[0]))
         self.landmark = np.asarray(self.line[1:197], dtype=np.float32)
         self.attribute = np.asarray(self.line[197:203], dtype=np.int32)
         self.euler_angle = np.asarray(self.line[203:206], dtype=np.float32)
@@ -169,8 +173,34 @@ class WLFWDatasets(data.Dataset):
         return len(self.lines)
 
 
+class WLFWTarDatasets(TarDataset):
+    def __init__(self, tar_data, annotation_list, transforms=None) -> None:
+        super().__init__(archive=tar_data)
+        self.lines = self.get_text_file("WLFW_data/" + annotation_list).splitlines()
+        self.line = None
+        self.path = None
+        self.landmarks = None
+        self.attribute = None
+        self.filenames = None
+        self.euler_angle = None
+        self.transforms = transforms
+
+    def __len__(self):
+        return len(self.lines)
+
+    def __getitem__(self, index):
+        self.line = self.lines[index].strip().split()
+        self.img = self.get_image("WLFW_data/" + self.line[0], pil=True)
+        self.landmark = np.asarray(self.line[1:197], dtype=np.float32)
+        self.attribute = np.asarray(self.line[197:203], dtype=np.int32)
+        self.euler_angle = np.asarray(self.line[203:206], dtype=np.float32)
+        if self.transforms:
+            self.img = self.transforms(self.img)
+        return (self.img, self.landmark, self.attribute, self.euler_angle)
+
+
 if __name__ == "__main__":
-    file_list = "./data/test_data/list.txt"
+    file_list = "data/test_data/list.txt"
     wlfwdataset = WLFWDatasets(file_list)
     dataloader = DataLoader(
         wlfwdataset, batch_size=256, shuffle=True, num_workers=0, drop_last=False
